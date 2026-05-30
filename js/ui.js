@@ -1076,6 +1076,7 @@ const UI = (() => {
     $('#btn-new-project').addEventListener('click', openNewProjectModal);
     $('#btn-new-project-empty').addEventListener('click', openNewProjectModal);
     $('#btn-confirm-new-project').addEventListener('click', _confirmNewProject);
+    $('#btn-close-project-modal').addEventListener('click',  () => closeModal('#project-modal-overlay'));
     $('#btn-cancel-project-modal').addEventListener('click', () => closeModal('#project-modal-overlay'));
     $('#new-project-name').addEventListener('keydown', e => { if (e.key === 'Enter') _confirmNewProject(); });
 
