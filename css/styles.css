@@ -1244,3 +1244,167 @@ html, body {
 .cal-event-bar.continues-right { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 /* Toggle button active state */
 #btn-toggle-cal-view.is-calendar svg { display: none; }
+
+/* ═══════════════════════════════════════════════════════
+   EMPTY STATE — secondary row
+   ═══════════════════════════════════════════════════════ */
+.empty-state-secondary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.empty-state-secondary .btn { gap: 5px; }
+.empty-state-dot {
+  color: var(--clr-text-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════
+   IMPORT MODAL
+   ═══════════════════════════════════════════════════════ */
+
+/* Tab switcher */
+.import-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--clr-border);
+  margin-bottom: 16px;
+}
+.import-tab {
+  padding: 8px 18px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color .15s, border-color .15s;
+}
+.import-tab:hover  { color: var(--clr-text-2); }
+.import-tab.active { color: var(--clr-primary); border-bottom-color: var(--clr-primary); }
+
+/* File drop zone */
+.file-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 24px;
+  border: 2px dashed var(--clr-border);
+  border-radius: var(--radius-lg);
+  background: var(--clr-bg);
+  cursor: pointer;
+  transition: all .2s;
+  text-align: center;
+}
+.file-drop-zone:hover,
+.file-drop-zone.drag-over {
+  border-color: var(--clr-primary);
+  background: var(--clr-primary-lt);
+}
+.file-drop-zone.file-loaded {
+  border-style: solid;
+  border-color: var(--clr-success);
+  background: var(--clr-success-lt);
+}
+.drop-icon {
+  width: 36px; height: 36px;
+  color: var(--clr-text-muted);
+  margin-bottom: 4px;
+}
+.file-drop-zone.file-loaded .drop-icon { color: var(--clr-success); }
+.drop-primary  { font-size: 14px; font-weight: 600; color: var(--clr-text-2); margin: 0; }
+.drop-secondary{ font-size: 12px; color: var(--clr-text-muted); margin: 0; }
+.drop-filename { font-size: 13px; font-weight: 700; color: var(--clr-success); margin: 0; }
+
+.import-format-note {
+  font-size: 11px;
+  color: var(--clr-text-muted);
+  margin-top: 8px;
+  text-align: center;
+}
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--clr-primary);
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.btn-link:hover { color: var(--clr-primary-dk); }
+
+/* Import warnings */
+.import-warnings {
+  background: var(--clr-warn-lt);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.import-warnings p {
+  font-size: 12px;
+  color: #92400e;
+  margin: 3px 0;
+  line-height: 1.4;
+}
+
+/* Import preview */
+.import-preview-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+.import-preview-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+}
+.import-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.import-preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--clr-bg);
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  border-bottom: 1px solid var(--clr-border);
+  white-space: nowrap;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.import-preview-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--clr-border-light);
+  color: var(--clr-text-2);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.import-preview-table tr:last-child td { border-bottom: none; }
+.import-preview-table tr:hover td { background: var(--clr-bg); }
+.import-preview-table td:first-child {
+  color: var(--clr-text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 32px;
+  text-align: center;
+}

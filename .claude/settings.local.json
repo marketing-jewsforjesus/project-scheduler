@@ -8,7 +8,8 @@
       "PowerShell(npm --version 2>&1)",
       "Bash(mkdir -p .claude)",
       "Bash(node -e \"console.log\\('node ok'\\)\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git add *)"
     ]
   }
 }

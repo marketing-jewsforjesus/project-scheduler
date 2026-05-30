@@ -1050,6 +1050,206 @@ const UI = (() => {
   }
 
   // ═══════════════════════════════════════════════════════
+  // 13. IMPORT MODAL
+  // ═══════════════════════════════════════════════════════
+
+  let _importParsedSteps = [];
+
+  function openImportModal() {
+    _importParsedSteps = [];
+    $('#import-project-name').value = '';
+    $('#import-paste-area').value   = '';
+    $('#import-preview-wrap').classList.add('hidden');
+    $('#btn-confirm-import').classList.add('hidden');
+    _resetDropZone();
+
+    // Activate File tab
+    $$('.import-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'file'));
+    $('#import-panel-file').classList.remove('hidden');
+    $('#import-panel-paste').classList.add('hidden');
+
+    showModal('#import-modal-overlay');
+    setTimeout(() => $('#import-project-name').focus(), 60);
+  }
+
+  function _resetDropZone() {
+    const dz = $('#file-drop-zone');
+    dz.className = 'file-drop-zone';
+    dz.innerHTML = `
+      <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17,8 12,3 7,8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p class="drop-primary">Drop a CSV or Excel file here</p>
+      <p class="drop-secondary">or</p>
+      <button class="btn btn-ghost btn-sm" id="btn-browse-file" type="button">Browse files</button>
+      <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="display:none">`;
+
+    // Re-wire the browse button (inner HTML was replaced)
+    $('#btn-browse-file').addEventListener('click', () => $('#import-file-input').click());
+    $('#import-file-input').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f) _handleImportFile(f);
+      e.target.value = '';
+    });
+  }
+
+  async function _handleImportFile(file) {
+    const suggestedName = file.name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+
+    try {
+      let rows;
+      if (/\.xlsx?$/i.test(file.name)) {
+        if (!window.XLSX) {
+          toast('Excel support failed to load — please save as CSV and try again.', 'error');
+          return;
+        }
+        const buf = await file.arrayBuffer();
+        rows = Import.parseExcel(buf);
+      } else {
+        const text = await file.text();
+        rows = Import.parseCSV(text);
+      }
+
+      _processImportRows(rows, suggestedName);
+
+      // Update drop zone to show success state
+      const dz = $('#file-drop-zone');
+      dz.classList.add('file-loaded');
+      dz.querySelector('.drop-icon').style.cssText = 'color:var(--clr-success)';
+      dz.querySelector('.drop-primary').textContent  = file.name;
+      dz.querySelector('.drop-secondary').textContent = 'File loaded — review steps below';
+      const browseBtn = dz.querySelector('#btn-browse-file');
+      if (browseBtn) browseBtn.textContent = 'Choose a different file';
+
+    } catch (err) {
+      toast('Could not read file: ' + err.message, 'error');
+    }
+  }
+
+  function _handleImportPaste(text) {
+    if (!text.trim()) return;
+    // Auto-detect: tabs → TSV (Excel/Sheets paste), otherwise → CSV
+    const rows = text.includes('\t') ? Import.parsePaste(text) : Import.parseCSV(text);
+    _processImportRows(rows, '');
+  }
+
+  function _processImportRows(rows, suggestedName) {
+    const { steps, warnings } = Import.rowsToSteps(rows);
+    _importParsedSteps = steps;
+
+    // Warnings
+    const warnEl = $('#import-warnings-list');
+    warnEl.innerHTML = '';
+    if (warnings.length) {
+      const box = document.createElement('div');
+      box.className = 'import-warnings';
+      warnings.forEach(w => {
+        const p = document.createElement('p');
+        p.textContent = '⚠ ' + w;
+        box.appendChild(p);
+      });
+      warnEl.appendChild(box);
+    }
+
+    // Preview table
+    const inner = $('#import-preview-inner');
+    inner.innerHTML = '';
+
+    if (!steps.length) {
+      inner.innerHTML = '<p style="font-size:13px;color:var(--clr-danger);padding:4px 0;">No valid steps found. Check that your first row contains column headers.</p>';
+      $('#btn-confirm-import').classList.add('hidden');
+    } else {
+      const heading = document.createElement('p');
+      heading.className = 'import-preview-heading';
+      heading.textContent = `${steps.length} step${steps.length !== 1 ? 's' : ''} ready to import`;
+      inner.appendChild(heading);
+
+      const scroll = document.createElement('div');
+      scroll.className = 'import-preview-scroll';
+
+      const byId = Object.fromEntries(steps.map(s => [s.id, s]));
+      const tbl  = document.createElement('table');
+      tbl.className = 'import-preview-table';
+      tbl.innerHTML = `<thead><tr>
+        <th>#</th><th>Step Name</th><th>Duration</th>
+        <th>Owner(s)</th><th>Depends On</th><th>Notes</th>
+      </tr></thead>`;
+      const tbody = document.createElement('tbody');
+
+      steps.forEach((s, i) => {
+        const depName = s.dependsOn ? (byId[s.dependsOn]?.name || '—') : '—';
+        const dur     = s.durationUnit === 'calendar_weeks'
+          ? `${s.workingDays} wk` : `${s.workingDays} wd`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td title="${escHtml(s.name)}">${escHtml(s.name)}</td>
+          <td style="text-align:center;font-family:var(--font-mono)">${escHtml(dur)}</td>
+          <td title="${escHtml(s.owners || '')}">${escHtml(s.owners || '—')}</td>
+          <td title="${escHtml(depName)}">${escHtml(depName)}</td>
+          <td title="${escHtml(s.notes || '')}">${escHtml(s.notes || '')}</td>`;
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      scroll.appendChild(tbl);
+      inner.appendChild(scroll);
+
+      $('#btn-confirm-import').classList.remove('hidden');
+    }
+
+    // Auto-fill name if blank
+    if (suggestedName && !$('#import-project-name').value.trim()) {
+      $('#import-project-name').value = suggestedName;
+    }
+
+    $('#import-preview-wrap').classList.remove('hidden');
+  }
+
+  function _confirmImport() {
+    const name = $('#import-project-name').value.trim();
+    if (!name) {
+      toast('Please enter a project name.', 'error');
+      $('#import-project-name').focus();
+      return;
+    }
+    if (!_importParsedSteps.length) {
+      toast('No steps to import.', 'error');
+      return;
+    }
+
+    const p  = D.createProject(name, 'end');
+    p.steps  = _importParsedSteps;
+
+    // Auto-populate owners from step data
+    const seen = new Set();
+    const ownerList = [];
+    for (const step of p.steps) {
+      if (!step.owners) continue;
+      for (const raw of step.owners.split(',')) {
+        const n = raw.trim();
+        if (n && !seen.has(n.toLowerCase())) {
+          seen.add(n.toLowerCase());
+          ownerList.push({
+            id:    D.uid(),
+            name:  n,
+            color: PASTEL_COLORS[ownerList.length % PASTEL_COLORS.length],
+          });
+        }
+      }
+    }
+    p.owners = ownerList;
+
+    closeModal('#import-modal-overlay');
+    _addProject(p);
+    toast(`"${name}" imported — ${p.steps.length} steps.`, 'success');
+  }
+
+  // ═══════════════════════════════════════════════════════
   //  GENERIC MODAL HELPERS
   // ═══════════════════════════════════════════════════════
 
@@ -1078,6 +1278,10 @@ const UI = (() => {
     $('#btn-confirm-new-project').addEventListener('click', _confirmNewProject);
     $('#btn-close-project-modal').addEventListener('click',  () => closeModal('#project-modal-overlay'));
     $('#btn-cancel-project-modal').addEventListener('click', () => closeModal('#project-modal-overlay'));
+    $('#btn-import-from-new-project').addEventListener('click', () => {
+      closeModal('#project-modal-overlay');
+      openImportModal();
+    });
     $('#new-project-name').addEventListener('keydown', e => { if (e.key === 'Enter') _confirmNewProject(); });
 
     // ── Load template ────────────────────────────────────
@@ -1278,11 +1482,65 @@ const UI = (() => {
       }
     });
 
+    // ── Import modal ─────────────────────────────────────
+    $('#btn-import-project-empty')?.addEventListener('click', openImportModal);
+    $('#btn-close-import-modal').addEventListener('click',  () => closeModal('#import-modal-overlay'));
+    $('#btn-cancel-import').addEventListener('click',       () => closeModal('#import-modal-overlay'));
+    $('#btn-confirm-import').addEventListener('click', _confirmImport);
+
+    // Template download buttons (empty state + inside import modal)
+    $('#btn-download-template').addEventListener('click',        () => Import.downloadTemplate());
+    $('#btn-download-template-import').addEventListener('click', () => Import.downloadTemplate());
+
+    // Import tab switching
+    $$('.import-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.import-tab').forEach(t => t.classList.toggle('active', t === tab));
+        $('#import-panel-file').classList.toggle('hidden',  tab.dataset.tab !== 'file');
+        $('#import-panel-paste').classList.toggle('hidden', tab.dataset.tab !== 'paste');
+      });
+    });
+
+    // File drop zone (initial wiring — _resetDropZone re-wires on open)
+    _resetDropZone();
+
+    const dropZone = $('#file-drop-zone');
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', e => {
+      if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) _handleImportFile(f);
+    });
+    // Clicking the drop zone (not a button inside it) triggers file picker
+    dropZone.addEventListener('click', e => {
+      if (!e.target.closest('button')) {
+        const fi = $('#import-file-input');
+        if (fi) fi.click();
+      }
+    });
+
+    // Paste panel
+    $('#btn-parse-paste').addEventListener('click', () => {
+      _handleImportPaste($('#import-paste-area').value);
+    });
+    // Auto-parse when user pastes into the textarea
+    $('#import-paste-area').addEventListener('paste', () => {
+      setTimeout(() => _handleImportPaste($('#import-paste-area').value), 60);
+    });
+
     // ── Overlay backdrop closes ───────────────────────────
     _attachOverlayClose('#project-modal-overlay',          '#project-modal');
     _attachOverlayClose('#step-modal-overlay',             '#step-modal');
     _attachOverlayClose('#holidays-modal-overlay',         '#holidays-modal');
     _attachOverlayClose('#project-holidays-modal-overlay', '#project-holidays-modal');
+    _attachOverlayClose('#import-modal-overlay',           '#import-modal');
 
     // ── Escape closes top modal ───────────────────────────
     document.addEventListener('keydown', e => {
@@ -1291,6 +1549,7 @@ const UI = (() => {
       _insertContext = null;
       const modals = [
         '#step-modal-overlay',
+        '#import-modal-overlay',
         '#project-holidays-modal-overlay',
         '#project-modal-overlay',
         '#holidays-modal-overlay',

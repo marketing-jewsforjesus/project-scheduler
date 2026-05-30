@@ -67,10 +67,29 @@
         <line x1="3"  y1="10" x2="21" y2="10"/>
       </svg>
       <h2>No projects yet</h2>
-      <p>Create a new project or load a saved one to get started.</p>
+      <p>Create a new project or import one from a spreadsheet to get started.</p>
       <div class="empty-state-actions">
         <button class="btn btn-primary" id="btn-new-project-empty">New Project</button>
-        <button class="btn btn-secondary" id="btn-load-template">Load Print Appeal Template</button>
+        <button class="btn btn-secondary" id="btn-import-project-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17,8 12,3 7,8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Import CSV / Excel
+        </button>
+      </div>
+      <div class="empty-state-secondary">
+        <button class="btn btn-ghost btn-sm" id="btn-load-template">Load Print Appeal Example</button>
+        <span class="empty-state-dot">·</span>
+        <button class="btn btn-ghost btn-sm" id="btn-download-template">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7,10 12,15 17,10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download CSV Template
+        </button>
       </div>
     </div>
 
@@ -222,6 +241,14 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" id="btn-cancel-project-modal">Cancel</button>
+        <button class="btn btn-secondary" id="btn-import-from-new-project">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17,8 12,3 7,8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Import CSV / Excel
+        </button>
         <button class="btn btn-primary" id="btn-confirm-new-project">Create Project</button>
       </div>
     </div>
@@ -352,11 +379,88 @@
   </div>
 
   <!-- ═══════════════════════════════════════════
+       MODAL: IMPORT PROJECT
+  ═══════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="import-modal-overlay">
+    <div class="modal modal-wide" id="import-modal">
+      <div class="modal-header">
+        <h2>Import Project</h2>
+        <button class="btn-close" id="btn-close-import-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Project name -->
+        <div class="form-group" style="margin-bottom:16px;">
+          <label for="import-project-name">Project Name</label>
+          <input type="text" id="import-project-name" class="input-text"
+                 placeholder="e.g. Spring Appeal 2026" autocomplete="off">
+        </div>
+
+        <!-- Tab switcher -->
+        <div class="import-tabs">
+          <button class="import-tab active" data-tab="file">Upload File</button>
+          <button class="import-tab" data-tab="paste">Paste from Spreadsheet</button>
+        </div>
+
+        <!-- FILE UPLOAD panel -->
+        <div id="import-panel-file">
+          <div class="file-drop-zone" id="file-drop-zone">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17,8 12,3 7,8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p class="drop-primary">Drop a CSV or Excel file here</p>
+            <p class="drop-secondary">or</p>
+            <button class="btn btn-ghost btn-sm" id="btn-browse-file" type="button">Browse files</button>
+            <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="display:none">
+          </div>
+          <p class="import-format-note">
+            Accepts .csv, .xlsx, .xls &nbsp;—&nbsp;
+            <button class="btn-link" id="btn-download-template-import" type="button">download the template</button>
+            to see the expected column format.
+          </p>
+        </div>
+
+        <!-- PASTE panel -->
+        <div id="import-panel-paste" class="hidden">
+          <p style="font-size:12px;color:var(--clr-text-muted);margin-bottom:8px;">
+            Select and copy cells from Excel or Google Sheets, then paste below.
+            The first row should be column headers.
+          </p>
+          <textarea id="import-paste-area" class="input-textarea" rows="8"
+                    placeholder="Paste your spreadsheet data here…"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="btn-parse-paste" type="button">Parse Table</button>
+            <span style="font-size:11px;color:var(--clr-text-muted);">or just paste — it'll auto-detect</span>
+          </div>
+        </div>
+
+        <!-- PREVIEW / WARNINGS -->
+        <div id="import-preview-wrap" class="hidden" style="margin-top:16px;">
+          <div id="import-warnings-list"></div>
+          <div id="import-preview-inner"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="btn-cancel-import">Cancel</button>
+        <button class="btn btn-primary hidden" id="btn-confirm-import">
+          Create Project
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
        TOAST NOTIFICATION
   ═══════════════════════════════════════════ -->
   <div class="toast hidden" id="toast">
     <span id="toast-message"></span>
   </div>
+
+  <!-- SheetJS for Excel support -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- Scripts (order matters) -->
   <script src="js/holidays.js"></script>
@@ -364,6 +468,7 @@
   <script src="js/scheduler.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/import.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>
