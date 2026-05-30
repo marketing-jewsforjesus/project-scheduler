@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(py --version)",
+      "Bash(where python*)",
+      "PowerShell(node --version 2>&1)",
+      "PowerShell(npm --version 2>&1)",
+      "Bash(mkdir -p .claude)",
+      "Bash(node -e \"console.log\\('node ok'\\)\")",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
