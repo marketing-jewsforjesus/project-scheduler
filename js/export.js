@@ -95,7 +95,61 @@ const Export = (() => {
     return navigator.clipboard.writeText(lines.join('\n'));
   }
 
-  return { buildRows, toCSV, downloadCSV, copyAsTable };
+  // ─── Template CSV (importable format — step definitions, no dates) ─
+  //
+  //  Outputs the same column layout that import.js / the Download Template
+  //  button expects, so this file can be re-uploaded to recreate the project.
+  //
+  function downloadProjectTemplate(project) {
+    const byId = Object.fromEntries(project.steps.map(s => [s.id, s]));
+
+    const TEMPL_HEADERS = [
+      'Step Name','Working Days','Owner(s)','Notify',
+      'Depends On','Duration Unit','Anchor Offset','Notes',
+    ];
+
+    const rows = [TEMPL_HEADERS];
+    for (const step of project.steps) {
+      const depName      = step.dependsOn && byId[step.dependsOn]
+        ? byId[step.dependsOn].name : '';
+      const durationUnit = step.durationUnit === 'calendar_weeks'
+        ? 'calendar_weeks' : 'working';
+      const anchorOffset = step.anchorOffset != null
+        ? String(step.anchorOffset) : '';
+
+      rows.push([
+        step.name,
+        String(step.workingDays),
+        step.owners        || '',
+        step.notifications || '',
+        depName,
+        durationUnit,
+        anchorOffset,
+        step.notes         || '',
+      ]);
+    }
+
+    const csv = rows.map(row =>
+      row.map(cell => {
+        const s = String(cell ?? '');
+        return (s.includes(',') || s.includes('"') || s.includes('\n'))
+          ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+      href:     url,
+      download: `${project.name.replace(/[^a-z0-9]/gi, '_')}_template.csv`,
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return { buildRows, toCSV, downloadCSV, copyAsTable, downloadProjectTemplate };
 })();
 
 window.Export = Export;

@@ -1282,6 +1282,10 @@ const UI = (() => {
       closeModal('#project-modal-overlay');
       openImportModal();
     });
+    $('#btn-load-template-modal').addEventListener('click', () => {
+      closeModal('#project-modal-overlay');
+      _addProject(Tpl.getPrintAppealTemplate());
+    });
     $('#new-project-name').addEventListener('keydown', e => { if (e.key === 'Enter') _confirmNewProject(); });
 
     // ── Load template ────────────────────────────────────
@@ -1365,6 +1369,12 @@ const UI = (() => {
       const p = activeProject(), r = State.results[p?.id];
       if (!p || !r) { toast('Calculate the schedule first.', 'error'); return; }
       Exp.downloadCSV(p, r); toast('CSV downloaded.', 'success');
+    });
+    $('#btn-export-template').addEventListener('click', () => {
+      const p = activeProject();
+      if (!p || !p.steps.length) { toast('No steps to export.', 'error'); return; }
+      Exp.downloadProjectTemplate(p);
+      toast(`Template saved — re-import it anytime to recreate "${p.name}".`, 'success');
     });
     $('#btn-copy-table').addEventListener('click', async () => {
       const p = activeProject(), r = State.results[p?.id];

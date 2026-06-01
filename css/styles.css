@@ -1264,6 +1264,25 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════
+   NEW-PROJECT MODAL — template quick-start row
+   ═══════════════════════════════════════════════════════ */
+.form-template-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 1px solid var(--clr-border-light);
+  flex-wrap: wrap;
+}
+.form-template-label {
+  font-size: 12px;
+  color: var(--clr-text-muted);
+  white-space: nowrap;
+}
+.form-template-row .btn { gap: 5px; }
+
+/* ═══════════════════════════════════════════════════════
    IMPORT MODAL
    ═══════════════════════════════════════════════════════ */
 
