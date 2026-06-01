@@ -95,6 +95,73 @@ const Export = (() => {
     return navigator.clipboard.writeText(lines.join('\n'));
   }
 
+  // ─── Outlook Calendar CSV ─────────────────────────────────────────
+  //
+  //  Produces a file Outlook can import via File → Open & Export →
+  //  Import/Export → Import from another program or file → CSV.
+  //
+  //  Columns: Subject | Start Date | Start Time | End Date | End Time
+  //  Subject format: "<Project Name> - <Step Name>"
+  //  Dates:  M/D/YYYY  (Outlook locale-safe format)
+  //  Times:  "h:mm AM/PM" — pass "" to leave blank (all-day events)
+  //
+  function downloadOutlookCSV(project, result, startTime, endTime) {
+    const { dates, order } = result;
+    const byId = Object.fromEntries(project.steps.map(s => [s.id, s]));
+
+    // Convert 24-h "HH:MM" (from <input type="time">) → "h:mm AM/PM"
+    function _12h(t) {
+      if (!t) return '';
+      const [hStr, mStr] = t.split(':');
+      const h = parseInt(hStr, 10);
+      const period = h < 12 ? 'AM' : 'PM';
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${mStr} ${period}`;
+    }
+
+    // M/D/YYYY  (no leading zeros — matches Outlook's expected locale)
+    function _outlookDate(d) {
+      return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+    }
+
+    const HEADERS = ['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time'];
+    const startFmt = _12h(startTime);
+    const endFmt   = _12h(endTime);
+
+    const rows = [HEADERS];
+    for (const id of order) {
+      const step = byId[id];
+      const d    = dates[id];
+      if (!step || !d) continue;
+      rows.push([
+        `${project.name} - ${step.name}`,
+        _outlookDate(d.start),
+        startFmt,
+        _outlookDate(d.end),
+        endFmt,
+      ]);
+    }
+
+    const csv = rows.map(row =>
+      row.map(cell => {
+        const s = String(cell ?? '');
+        return (s.includes(',') || s.includes('"') || s.includes('\n'))
+          ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+      href:     url,
+      download: `${project.name.replace(/[^a-z0-9]/gi, '_')}_outlook.csv`,
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // ─── Template CSV (importable format — step definitions, no dates) ─
   //
   //  Outputs the same column layout that import.js / the Download Template
@@ -149,7 +216,7 @@ const Export = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { buildRows, toCSV, downloadCSV, copyAsTable, downloadProjectTemplate };
+  return { buildRows, toCSV, downloadCSV, copyAsTable, downloadProjectTemplate, downloadOutlookCSV };
 })();
 
 window.Export = Export;

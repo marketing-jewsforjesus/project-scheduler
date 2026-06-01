@@ -49,6 +49,32 @@ function fmt(d) {
   return `${y}-${m}-${day}`;
 }
 
+// ─────────────────────────────────────────────────────────────
+//  JEWISH HIGH HOLIDAYS  (Rosh Hashanah + Yom Kippur)
+//
+//  These follow the Hebrew lunisolar calendar so dates vary each year.
+//  Weekend observance matches US federal holiday rules:
+//    Saturday holiday → observed on Friday
+//    Sunday  holiday → observed on Monday
+//
+//  Lookup: [month (1-based), day] of Rosh Hashanah Day 1 for each year.
+//  Yom Kippur is always exactly 9 calendar days after Rosh Hashanah Day 1.
+// ─────────────────────────────────────────────────────────────
+const _ROSH_HASHANAH = {
+  2024: [10,  2], // Oct 2  (Wed)
+  2025: [ 9, 22], // Sep 22 (Mon)
+  2026: [ 9, 11], // Sep 11 (Fri)
+  2027: [10,  1], // Oct 1  (Fri)
+  2028: [ 9, 20], // Sep 20 (Wed)
+  2029: [ 9,  9], // Sep 9  (Sun)
+  2030: [ 9, 28], // Sep 28 (Sat)
+  2031: [ 9, 18], // Sep 18 (Thu)
+  2032: [ 9,  6], // Sep 6  (Mon)
+  2033: [ 9, 25], // Sep 25 (Sun)
+  2034: [ 9, 14], // Sep 14 (Thu)
+  2035: [10,  4], // Oct 4  (Thu)
+};
+
 /**
  * Build an array of { date: "YYYY-MM-DD", name: string } for a given year.
  * Includes US Federal holidays + common observed days.
@@ -103,6 +129,27 @@ function buildHolidaysForYear(year) {
 
   // 13. Christmas Day — December 25 (observed)
   add(observedDate(year, 11, 25), "Christmas Day");
+
+  // ── Jewish High Holidays ─────────────────────────────
+  // Sat → Fri, Sun → Mon (same observance rule as above).
+  // JS Date constructor auto-normalises month/day overflow, so
+  // e.g. new Date(2030, 8, 37) correctly resolves to Oct 7.
+  const rh = _ROSH_HASHANAH[year];
+  if (rh) {
+    const [rhM, rhD] = rh;
+
+    // Rosh Hashanah Day 1 (observed)
+    const rh1 = observedDate(year, rhM - 1, rhD);
+    add(rh1, 'Rosh Hashanah');
+
+    // Rosh Hashanah Day 2 (observed) — skip if it collapses to the same
+    // weekday as Day 1 (e.g. Day 2 = Sat observed Fri = same as Day 1 = Fri)
+    const rh2 = observedDate(year, rhM - 1, rhD + 1);
+    if (fmt(rh2) !== fmt(rh1)) add(rh2, 'Rosh Hashanah (Day 2)');
+
+    // Yom Kippur — 9 calendar days after Rosh Hashanah Day 1 (observed)
+    add(observedDate(year, rhM - 1, rhD + 9), 'Yom Kippur');
+  }
 
   // Sort by date
   holidays.sort((a, b) => (a.date > b.date ? 1 : -1));

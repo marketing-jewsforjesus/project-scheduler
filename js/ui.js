@@ -1376,6 +1376,29 @@ const UI = (() => {
       Exp.downloadProjectTemplate(p);
       toast(`Template saved — re-import it anytime to recreate "${p.name}".`, 'success');
     });
+
+    // ── Outlook calendar export ───────────────────────────
+    $('#btn-export-outlook').addEventListener('click', () => {
+      const p = activeProject(), r = State.results[p?.id];
+      if (!p || !r) { toast('Calculate the schedule first.', 'error'); return; }
+      // Reset time inputs and open modal
+      $('#outlook-start-time').value = '';
+      $('#outlook-end-time').value   = '';
+      showModal('#outlook-modal-overlay');
+      setTimeout(() => $('#outlook-start-time').focus(), 60);
+    });
+    $('#btn-close-outlook-modal').addEventListener('click',  () => closeModal('#outlook-modal-overlay'));
+    $('#btn-cancel-outlook-export').addEventListener('click', () => closeModal('#outlook-modal-overlay'));
+    $('#btn-confirm-outlook-export').addEventListener('click', () => {
+      const p = activeProject(), r = State.results[p?.id];
+      if (!p || !r) return;
+      const startTime = $('#outlook-start-time').value;
+      const endTime   = $('#outlook-end-time').value;
+      Exp.downloadOutlookCSV(p, r, startTime, endTime);
+      closeModal('#outlook-modal-overlay');
+      toast('Outlook calendar CSV downloaded.', 'success');
+    });
+    _attachOverlayClose('#outlook-modal-overlay', '#outlook-modal');
     $('#btn-copy-table').addEventListener('click', async () => {
       const p = activeProject(), r = State.results[p?.id];
       if (!p || !r) { toast('Calculate the schedule first.', 'error'); return; }
@@ -1560,6 +1583,7 @@ const UI = (() => {
       const modals = [
         '#step-modal-overlay',
         '#import-modal-overlay',
+        '#outlook-modal-overlay',
         '#project-holidays-modal-overlay',
         '#project-modal-overlay',
         '#holidays-modal-overlay',
