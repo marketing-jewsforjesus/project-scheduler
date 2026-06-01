@@ -287,7 +287,218 @@ const Templates = (() => {
     return project;
   }
 
-  return { getPrintAppealTemplate };
+  // ── Digital Appeal Template ───────────────────────────────────────
+  //
+  //  Based on the standard Digital Appeal workflow.
+  //
+  //  Dependency map:
+  //
+  //  Appeal Ideation (root)
+  //    └─ Approved Copy & Design (5)
+  //         ├─ Hand-off to Irina (1) ──► Copy Proofing (2) ──► Check/Stet (1)
+  //         │    ──► Email Building (2)
+  //         │         ├─ Email Preview to HC, JS (1) ──► Email Preview to CEO/COO (1)
+  //         │         └─ QA Emails (2) ──► Send Internally (1)
+  //         │                        └──► Scheduling Emails (1)  ← ANCHOR
+  //         └─ Viewspark Building (10) ──► Viewspark Approval (5)
+  //
+  function getDigitalAppealTemplate() {
+    const project = Data.createProject('Digital Appeal', 'end');
+
+    const ID = {
+      ideation:       Data.uid(),
+      approvedCopy:   Data.uid(),
+      handOff:        Data.uid(),
+      copyProofing:   Data.uid(),
+      checkStet:      Data.uid(),
+      emailBuilding:  Data.uid(),
+      previewHCJS:    Data.uid(),
+      previewCEO:     Data.uid(),
+      qaEmails:       Data.uid(),
+      sendInternally: Data.uid(),
+      scheduling:     Data.uid(),   // ← ANCHOR
+      viewsparkBuild: Data.uid(),
+      viewsparkApprv: Data.uid(),
+    };
+
+    project.steps = [
+
+      // ── ROOT ──────────────────────────────────────────────
+      Data.createStep({
+        id:            ID.ideation,
+        name:          'Appeal Ideation',
+        owners:        'Hunter, Jeffrey',
+        workingDays:   5,
+        dependsOn:     null,
+        anchorOffset:  null,
+        notifications: '',
+        notes:         'JS & HC meet to decide on copy, images, CTAs, etc.',
+      }),
+
+      // ── MAIN CHAIN ────────────────────────────────────────
+      Data.createStep({
+        id:            ID.approvedCopy,
+        name:          'Approved Copy & Design',
+        owners:        'Arielle, Aaron',
+        workingDays:   5,
+        dependsOn:     ID.ideation,
+        startOffset:   1,
+        notifications: 'Hunter',
+        notes:         'JS sends previews to ELT for approval.',
+      }),
+      Data.createStep({
+        id:            ID.handOff,
+        name:          'Hand-off to Irina',
+        owners:        'Jeffrey, Hunter',
+        workingDays:   1,
+        dependsOn:     ID.approvedCopy,
+        startOffset:   1,
+        notifications: '',
+        notes:         'JS sends Irina brief with folder of assets and previews.',
+      }),
+      Data.createStep({
+        id:            ID.copyProofing,
+        name:          'Copy Proofing',
+        owners:        'Proofreading',
+        workingDays:   2,
+        dependsOn:     ID.handOff,
+        startOffset:   1,
+        notifications: 'Hunter',
+        notes:         'Irina sends email doc to proofreading; JS & HC to check/stet changes.',
+      }),
+      Data.createStep({
+        id:            ID.checkStet,
+        name:          'Check / Stet Changes',
+        owners:        'Irina',
+        workingDays:   1,
+        dependsOn:     ID.copyProofing,
+        startOffset:   1,
+        notifications: '',
+        notes:         'If only small spelling/grammar changes, Irina can just accept all changes.',
+      }),
+      Data.createStep({
+        id:            ID.emailBuilding,
+        name:          'Email Building',
+        owners:        'Irina, Vladimir',
+        workingDays:   2,
+        dependsOn:     ID.checkStet,
+        startOffset:   1,
+        notifications: '',
+        notes:         'CC Graham for oversight.',
+      }),
+
+      // ── PARALLEL BRANCH 1: Preview chain ──────────────────
+      Data.createStep({
+        id:            ID.previewHCJS,
+        name:          'Email Preview to HC, JS',
+        owners:        'Irina, Hunter, Jeffrey',
+        workingDays:   1,
+        dependsOn:     ID.emailBuilding,
+        startOffset:   1,
+        notifications: '',
+        notes:         'JS sends final email to ELT in WhatsApp.',
+      }),
+      Data.createStep({
+        id:            ID.previewCEO,
+        name:          'Email Preview to CEO/COO',
+        owners:        'Jeffrey, Hunter, Arielle, Aaron',
+        workingDays:   1,
+        dependsOn:     ID.previewHCJS,
+        startOffset:   1,
+        notifications: '',
+        notes:         'Not an approval — just letting them see it.',
+      }),
+
+      // ── PARALLEL BRANCH 2: QA chain ───────────────────────
+      Data.createStep({
+        id:            ID.qaEmails,
+        name:          'QA Emails',
+        owners:        'Tim M, Mark G',
+        workingDays:   2,
+        dependsOn:     ID.emailBuilding,
+        startOffset:   1,
+        notifications: '',
+        notes:         '',
+      }),
+      Data.createStep({
+        id:            ID.sendInternally,
+        name:          'Send Internally',
+        owners:        'Mark G',
+        workingDays:   1,
+        dependsOn:     ID.qaEmails,
+        startOffset:   1,
+        notifications: '',
+        notes:         '',
+      }),
+
+      // ── ANCHOR: Scheduling Emails ─────────────────────────
+      Data.createStep({
+        id:            ID.scheduling,
+        name:          'Scheduling Emails',
+        owners:        'Irina',
+        workingDays:   1,
+        dependsOn:     ID.qaEmails,
+        startOffset:   1,
+        notifications: '',
+        notes:         'Second Tuesday of every month — 1st email.',
+      }),
+
+      // ── PARALLEL BRANCH 3: Viewspark (from Approved Copy) ─
+      Data.createStep({
+        id:            ID.viewsparkBuild,
+        name:          'Viewspark Building',
+        owners:        'Hunter, Bill',
+        workingDays:   10,
+        dependsOn:     ID.approvedCopy,
+        startOffset:   1,
+        notifications: '',
+        notes:         '',
+      }),
+      Data.createStep({
+        id:            ID.viewsparkApprv,
+        name:          'Viewspark Approval',
+        owners:        'Arielle, Aaron',
+        workingDays:   5,
+        dependsOn:     ID.viewsparkBuild,
+        startOffset:   1,
+        notifications: '',
+        notes:         '',
+      }),
+
+    ];
+
+    project.anchorStepId   = ID.scheduling;
+    project.anchorDateType = 'end';
+    project.anchorDate     = '';
+
+    // ── Auto-populate owners from step data ───────────────
+    const PASTELS = [
+      '#FFD0D0','#FFDCBA','#FFFAC8','#D0F0D0',
+      '#C8E0FF','#E8D0FF','#FFD0EC','#C8FFF0',
+      '#FFE4C0','#ECD0FF','#C8E8FF','#D0FFD8',
+    ];
+    const seen = new Set();
+    const ownerList = [];
+    for (const step of project.steps) {
+      if (!step.owners) continue;
+      for (const raw of step.owners.split(',')) {
+        const name = raw.trim();
+        if (name && !seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          ownerList.push({
+            id:    Data.uid(),
+            name,
+            color: PASTELS[ownerList.length % PASTELS.length],
+          });
+        }
+      }
+    }
+    project.owners = ownerList;
+
+    return project;
+  }
+
+  return { getPrintAppealTemplate, getDigitalAppealTemplate };
 })();
 
 window.Templates = Templates;

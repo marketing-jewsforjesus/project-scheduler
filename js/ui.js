@@ -888,6 +888,7 @@ const UI = (() => {
   function openNewProjectModal() {
     $('#new-project-name').value = '';
     $$('input[name="anchor-type-new"]').forEach(r => { r.checked = r.value === 'end'; });
+    $('#template-select').value = '';
     showModal('#project-modal-overlay');
     setTimeout(() => $('#new-project-name').focus(), 60);
   }
@@ -905,6 +906,12 @@ const UI = (() => {
     State.projects.push(project);
     setActive(project.id);
     toast(`"${project.name}" created.`, 'success');
+  }
+
+  // Central template loader — key matches <option value> in both selects
+  function _loadTemplate(key) {
+    if (key === 'print-appeal')   _addProject(Tpl.getPrintAppealTemplate());
+    if (key === 'digital-appeal') _addProject(Tpl.getDigitalAppealTemplate());
   }
 
   // ═══════════════════════════════════════════════════════
@@ -1282,14 +1289,24 @@ const UI = (() => {
       closeModal('#project-modal-overlay');
       openImportModal();
     });
-    $('#btn-load-template-modal').addEventListener('click', () => {
+    // Template dropdown in New Project modal
+    $('#template-select').addEventListener('change', () => {
+      const val = $('#template-select').value;
+      if (!val) return;
+      $('#template-select').value = ''; // reset for next open
       closeModal('#project-modal-overlay');
-      _addProject(Tpl.getPrintAppealTemplate());
+      _loadTemplate(val);
+    });
+    // Template dropdown on empty state
+    $('#template-select-empty').addEventListener('change', () => {
+      const val = $('#template-select-empty').value;
+      if (!val) return;
+      $('#template-select-empty').value = '';
+      _loadTemplate(val);
     });
     $('#new-project-name').addEventListener('keydown', e => { if (e.key === 'Enter') _confirmNewProject(); });
 
-    // ── Load template ────────────────────────────────────
-    $('#btn-load-template').addEventListener('click', () => _addProject(Tpl.getPrintAppealTemplate()));
+    // ── Load template (empty-state select handled below near New Project) ─
 
     // ── Project name ─────────────────────────────────────
     $('#project-name-input').addEventListener('input', () => {
