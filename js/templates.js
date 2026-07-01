@@ -295,10 +295,10 @@ const Templates = (() => {
   //                   ├─ Email Preview to HC, JS (1) ──► Email Preview to CEO/COO (1)
   //                   └─ QA Emails (2)
   //                        ├─ Send Internally (1)
-  //                        └─ Scheduling Emails (1)  ← ANCHOR
-  //                             ├─ Email 1 - Send date (7 wd → 2nd Tuesday)
-  //                             ├─ Viewspark - Send date (15 wd → 3rd Wednesday)
-  //                             └─ Email 2 - Send date (23 wd → 4th Thursday)
+  //                        └─ Scheduling Emails (1)
+  //                             └─ Email 1 - Send date  ← ANCHOR (2nd Tuesday, +4 wd)
+  //                                  ├─ Viewspark - Send date (+6 wd → 3rd Wednesday)
+  //                                  └─ Email 2 - Send date (+12 wd → 4th Thursday)
   //
   function getDigitalAppealTemplate() {
     const project = Data.createProject('Digital Appeal', 'end');
@@ -467,7 +467,8 @@ const Templates = (() => {
         notes:         '',
       }),
 
-      // ── ANCHOR: Scheduling Emails ─────────────────────────
+      // ── Scheduling Emails ─────────────────────────────────
+      // Parent of the anchor: happens 4 working days before Email 1 sends.
       Data.createStep({
         id:            ID.scheduling,
         name:          'Scheduling Emails',
@@ -476,45 +477,49 @@ const Templates = (() => {
         dependsOn:     ID.qaEmails,
         startOffset:   1,
         notifications: '',
-        notes:         'Plan to schedule the first Tuesday of the month. Anchor for the send dates below.',
+        notes:         'Schedule the emails ~4 working days before the send date.',
       }),
 
-      // ── SEND DATES (parallel, from Scheduling Emails) ─────
-      // Durations are chosen so each end date lands on its target send day.
+      // ── ANCHOR: Email 1 - Send date ───────────────────────
+      // The fixed point: always the second Tuesday of the month.
+      // Starts 4 working days after Scheduling Emails ends.
       Data.createStep({
         id:            ID.email1Send,
         name:          'Email 1 - Send date',
         owners:        'Irina',
-        workingDays:   7,
+        workingDays:   1,
         dependsOn:     ID.scheduling,
-        startOffset:   1,
+        startOffset:   4,
         notifications: '',
-        notes:         'Sent on the second Tuesday of the month.',
+        notes:         'Sent on the second Tuesday of the month. Anchor for the whole schedule.',
       }),
+
+      // ── SECONDARY SENDS (parallel, from Email 1) ──────────
+      // Working-day gaps from Email 1 to the later weekday-of-month sends.
       Data.createStep({
         id:            ID.viewsparkSend,
         name:          'Viewspark - Send date',
         owners:        'Hunter',
-        workingDays:   15,
-        dependsOn:     ID.scheduling,
-        startOffset:   1,
+        workingDays:   1,
+        dependsOn:     ID.email1Send,
+        startOffset:   6,   // ~3rd Wednesday (≈ 8 calendar days after Email 1)
         notifications: '',
-        notes:         'Sent on the third Wednesday of the month.',
+        notes:         'Sent on the third Wednesday of the month (~6 working days after Email 1).',
       }),
       Data.createStep({
         id:            ID.email2Send,
         name:          'Email 2 - Send date',
         owners:        'Irina',
-        workingDays:   23,
-        dependsOn:     ID.scheduling,
-        startOffset:   1,
+        workingDays:   1,
+        dependsOn:     ID.email1Send,
+        startOffset:   12,  // ~4th Thursday (≈ 16 calendar days after Email 1)
         notifications: '',
-        notes:         'Sent on the fourth Thursday of the month.',
+        notes:         'Sent on the fourth Thursday of the month (~12 working days after Email 1).',
       }),
 
     ];
 
-    project.anchorStepId   = ID.scheduling;
+    project.anchorStepId   = ID.email1Send;
     project.anchorDateType = 'end';
     project.anchorDate     = '';
 
