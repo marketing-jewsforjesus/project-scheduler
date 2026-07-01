@@ -86,7 +86,46 @@ const Scheduler = (() => {
     const dates   = {};
     const visited = new Set();
 
-    // ── Seed anchor ────────────────────────────────────────
+    // ── BFS: radiate in both directions from a set of seeds ─
+    // Seeds must already be placed in `dates` and marked visited.
+    function propagate(seedIds) {
+      const queue = [...seedIds];
+      while (queue.length) {
+        const id   = queue.shift();
+        const d    = dates[id];
+        const step = byId[id];
+
+        // FORWARD: children that depend on this step
+        for (const child of (childrenOf[id] || [])) {
+          if (visited.has(child.id)) continue;
+          visited.add(child.id);
+
+          let cStart, cEnd;
+          if (child.durationUnit === 'calendar_weeks') {
+            cStart = H.addCalendarWeeks(d.end, child.workingDays);
+            cEnd   = new Date(cStart);
+          } else {
+            cStart = addWD(d.end, child.startOffset);
+            cEnd   = calcEnd(cStart, child.workingDays);
+          }
+          dates[child.id] = { start: cStart, end: cEnd };
+          queue.push(child.id);
+        }
+
+        // BACKWARD: parent this step depends on
+        if (step.dependsOn && !visited.has(step.dependsOn)) {
+          const parent = byId[step.dependsOn];
+          if (!parent) continue;
+          visited.add(parent.id);
+          const pEnd   = addWD(d.start, -(step.startOffset));
+          const pStart = calcStart(pEnd, parent.workingDays);
+          dates[parent.id] = { start: pStart, end: pEnd };
+          queue.push(parent.id);
+        }
+      }
+    }
+
+    // ── Seed anchor, then radiate through its dependency graph ──
     const anchor = byId[anchorStepId];
     if (!anchor) return _empty();
 
@@ -100,53 +139,23 @@ const Scheduler = (() => {
       dates[anchorStepId] = { start, end };
     }
     visited.add(anchorStepId);
-
-    // ── BFS: radiate in both directions ───────────────────
-    const queue = [anchorStepId];
-
-    while (queue.length) {
-      const id   = queue.shift();
-      const d    = dates[id];
-      const step = byId[id];
-
-      // FORWARD: children that depend on this step
-      for (const child of (childrenOf[id] || [])) {
-        if (visited.has(child.id)) continue;
-        visited.add(child.id);
-
-        let cStart, cEnd;
-        if (child.durationUnit === 'calendar_weeks') {
-          cStart = H.addCalendarWeeks(d.end, child.workingDays);
-          cEnd   = new Date(cStart);
-        } else {
-          cStart = addWD(d.end, child.startOffset);
-          cEnd   = calcEnd(cStart, child.workingDays);
-        }
-        dates[child.id] = { start: cStart, end: cEnd };
-        queue.push(child.id);
-      }
-
-      // BACKWARD: parent this step depends on
-      if (step.dependsOn && !visited.has(step.dependsOn)) {
-        const parent = byId[step.dependsOn];
-        if (!parent) continue;
-        visited.add(parent.id);
-        const pEnd   = addWD(d.start, -(step.startOffset));
-        const pStart = calcStart(pEnd, parent.workingDays);
-        dates[parent.id] = { start: pStart, end: pEnd };
-        queue.push(parent.id);
-      }
-    }
+    propagate([anchorStepId]);
 
     // ── Anchor-offset steps (dependsOn=null, anchorOffset set) ──
-    const anchorEnd = dates[anchorStepId].end;
+    // Place each relative to the anchor's end, then radiate forward so
+    // their downstream chains (children, grandchildren, …) also schedule.
+    const anchorEnd  = dates[anchorStepId].end;
+    const offsetSeeds = [];
     for (const s of steps) {
       if (!s.dependsOn && s.anchorOffset != null && !visited.has(s.id)) {
         const start = addWD(anchorEnd, s.anchorOffset);
         const end   = calcEnd(start, s.workingDays);
         dates[s.id] = { start, end };
+        visited.add(s.id);
+        offsetSeeds.push(s.id);
       }
     }
+    if (offsetSeeds.length) propagate(offsetSeeds);
 
     return { dates, order: _sortedOrder(steps, dates) };
   }
