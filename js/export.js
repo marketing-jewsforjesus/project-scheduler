@@ -100,45 +100,34 @@ const Export = (() => {
   //  Produces a file Outlook can import via File → Open & Export →
   //  Import/Export → Import from another program or file → CSV.
   //
-  //  Columns: Subject | Start Date | Start Time | End Date | End Time
-  //  Subject format: "<Project Name> - <Step Name>"
+  //  Columns: Subject | Start Date | End Date | All Day Event
+  //  Subject format: "<Project Name> - <Step Name> (<Owner(s)>)"
   //  Dates:  M/D/YYYY  (Outlook locale-safe format)
-  //  Times:  "h:mm AM/PM" — pass "" to leave blank (all-day events)
+  //  All events are imported as all-day events.
   //
-  function downloadOutlookCSV(project, result, startTime, endTime) {
+  function downloadOutlookCSV(project, result) {
     const { dates, order } = result;
     const byId = Object.fromEntries(project.steps.map(s => [s.id, s]));
-
-    // Convert 24-h "HH:MM" (from <input type="time">) → "h:mm AM/PM"
-    function _12h(t) {
-      if (!t) return '';
-      const [hStr, mStr] = t.split(':');
-      const h = parseInt(hStr, 10);
-      const period = h < 12 ? 'AM' : 'PM';
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      return `${h12}:${mStr} ${period}`;
-    }
 
     // M/D/YYYY  (no leading zeros — matches Outlook's expected locale)
     function _outlookDate(d) {
       return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
     }
 
-    const HEADERS = ['Subject', 'Start Date', 'Start Time', 'End Date', 'End Time'];
-    const startFmt = _12h(startTime);
-    const endFmt   = _12h(endTime);
+    const HEADERS = ['Subject', 'Start Date', 'End Date', 'All Day Event'];
 
     const rows = [HEADERS];
     for (const id of order) {
       const step = byId[id];
       const d    = dates[id];
       if (!step || !d) continue;
+      const owners  = (step.owners || '').trim();
+      const subject = `${project.name} - ${step.name}` + (owners ? ` (${owners})` : '');
       rows.push([
-        `${project.name} - ${step.name}`,
+        subject,
         _outlookDate(d.start),
-        startFmt,
         _outlookDate(d.end),
-        endFmt,
+        'True',
       ]);
     }
 
