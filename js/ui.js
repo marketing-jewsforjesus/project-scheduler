@@ -835,7 +835,7 @@ const UI = (() => {
     const days = parseInt($('#step-working-days').value, 10);
 
     if (!name)          { toast('Step name is required.', 'error'); $('#step-name').focus(); return; }
-    if (!days || days < 1) { toast('Duration must be at least 1.', 'error'); $('#step-working-days').focus(); return; }
+    if (Number.isNaN(days) || days < 0) { toast('Duration must be 0 or more.', 'error'); $('#step-working-days').focus(); return; }
 
     const dependsOn    = $('#step-depends-on').value || null;
     const anchorOffRow = $('#anchor-offset-row');
