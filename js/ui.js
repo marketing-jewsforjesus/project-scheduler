@@ -258,7 +258,12 @@ const UI = (() => {
 
       let depLabel = '';
       if (step.dependsOn && byId[step.dependsOn]) {
-        depLabel = `after: ${byId[step.dependsOn].name}`;
+        const so = step.startOffset ?? 1;
+        let suffix = '';
+        if (so === 0)      suffix = ' (same day)';
+        else if (so < 0)   suffix = ` (${so}d, overlap)`;
+        else if (so > 1)   suffix = ` (+${so}d)`;
+        depLabel = `after: ${byId[step.dependsOn].name}${suffix}`;
       } else if (step.anchorOffset != null) {
         const sign = step.anchorOffset >= 0 ? '+' : '';
         depLabel = `anchor ${sign}${step.anchorOffset} wd`;
@@ -775,6 +780,7 @@ const UI = (() => {
       $('#step-duration-unit').value = step.durationUnit || 'working';
       depSel.value = step.dependsOn || '';
       _toggleAnchorOffsetRow(step.dependsOn ? null : (step.anchorOffset ?? ''));
+      _toggleStartOffsetRow(step.dependsOn ? (step.startOffset ?? 1) : null);
       // Populate owner picker from step
       const names = (step.owners || '').split(',').map(s => s.trim()).filter(Boolean);
       _renderOwnerPicker(p, new Set(names));
@@ -790,9 +796,11 @@ const UI = (() => {
       if (_insertContext) {
         depSel.value = _insertContext.priorStepId;
         _toggleAnchorOffsetRow(null); // has a dependency → hide anchor offset
+        _toggleStartOffsetRow(1);     // show start timing, default next-day
       } else {
         depSel.value = '';
         _toggleAnchorOffsetRow('');
+        _toggleStartOffsetRow(null);
       }
     }
 
@@ -827,6 +835,17 @@ const UI = (() => {
     }
   }
 
+  // Show/hide the "Start timing" (startOffset) row.
+  //   null → hide.  number → show + set value.  '' → show, keep current (default 1).
+  function _toggleStartOffsetRow(value) {
+    const row   = $('#start-offset-row');
+    const input = $('#step-start-offset');
+    if (value === null) { row.classList.add('hidden'); return; }
+    row.classList.remove('hidden');
+    if (value !== '')        input.value = value;
+    else if (input.value === '') input.value = 1;
+  }
+
   function _saveStep() {
     const p      = activeProject();
     const editId = $('#step-edit-id').value;
@@ -842,13 +861,20 @@ const UI = (() => {
     const anchorOffset = (!dependsOn && anchorOffRow && !anchorOffRow.classList.contains('hidden'))
       ? (parseInt($('#step-anchor-offset').value, 10) || null) : null;
 
+    // Start timing (working-day offset from the dependency's end) — only when dependent
+    let startOffset = 1;
+    if (dependsOn) {
+      const so = parseInt($('#step-start-offset').value, 10);
+      startOffset = Number.isNaN(so) ? 1 : so;
+    }
+
     // Collect owners from picker selection
     const owners = [..._stepOwnerSelection].join(', ');
 
     const fields = {
       name, owners,
       workingDays:   days,
-      dependsOn,     anchorOffset,
+      dependsOn,     anchorOffset,  startOffset,
       durationUnit:  $('#step-duration-unit').value,
       notifications: $('#step-notifications').value.trim(),
       notes:         $('#step-notes').value.trim(),
@@ -1360,9 +1386,11 @@ const UI = (() => {
       openStepModal(null);
     });
 
-    // ── Depends-on change → toggle anchor-offset row ─────
+    // ── Depends-on change → toggle anchor-offset / start-timing rows ─
     $('#step-depends-on').addEventListener('change', () => {
-      _toggleAnchorOffsetRow($('#step-depends-on').value ? null : '');
+      const hasDep = !!$('#step-depends-on').value;
+      _toggleAnchorOffsetRow(hasDep ? null : '');
+      _toggleStartOffsetRow(hasDep ? '' : null);
     });
 
     // ── Step modal save / cancel ─────────────────────────
