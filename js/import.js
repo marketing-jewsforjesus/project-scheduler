@@ -241,12 +241,32 @@ const Import = (() => {
     return { steps, warnings };
   }
 
+  // ── Holiday set CSV → { removed[], custom[] } ─────────
+  //  Expects columns: Type | Date | Label (see Export.downloadHolidaysCSV).
+  //  Rows are matched case-insensitively; a header row is detected and skipped.
+  function parseHolidaysCSV(text) {
+    const rows   = parseCSV(text);
+    const removed = [];
+    const custom  = [];
+    const dateRe  = /^\d{4}-\d{2}-\d{2}$/;
+
+    for (const row of rows) {
+      const type = String(row[0] ?? '').trim().toLowerCase();
+      const date = String(row[1] ?? '').trim();
+      const label = String(row[2] ?? '').trim();
+      if (!dateRe.test(date)) continue;         // skips header + malformed rows
+      if (type === 'removed')      removed.push(date);
+      else if (type === 'custom')  custom.push(label ? { date, label } : date);
+    }
+    return { removed, custom };
+  }
+
   // ── Minimal uid (mirrors Data.uid) ───────────────────
   function _uid() {
     return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
   }
 
-  return { downloadTemplate, parseCSV, parsePaste, parseExcel, rowsToSteps, HEADERS };
+  return { downloadTemplate, parseCSV, parsePaste, parseExcel, rowsToSteps, parseHolidaysCSV, HEADERS };
 })();
 
 window.Import = Import;

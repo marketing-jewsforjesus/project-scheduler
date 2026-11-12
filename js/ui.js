@@ -944,17 +944,50 @@ const UI = (() => {
   // 11. HOLIDAYS MODAL (global reference)
   // ═══════════════════════════════════════════════════════
 
+  // ── Holiday year defaulting ───────────────────────────
+  const HOLIDAY_YEAR_KEY = 'proj_scheduler_holiday_year';
+
+  // Resolve which year the holidays modal should open to:
+  //   1. the project's anchor-date year · 2. the remembered year · 3. current year
+  function _defaultHolidayYear(p) {
+    if (p && p.anchorDate) {
+      const d = H.parseDate(p.anchorDate);
+      if (d) return d.getFullYear();
+    }
+    const saved = parseInt((() => { try { return localStorage.getItem(HOLIDAY_YEAR_KEY); } catch { return null; } })(), 10);
+    if (!Number.isNaN(saved)) return saved;
+    return new Date().getFullYear();
+  }
+
+  function _rememberHolidayYear(year) {
+    try { localStorage.setItem(HOLIDAY_YEAR_KEY, String(year)); } catch {}
+  }
+
+  // Rebuild a year <select>'s options (current-1 … current+6, widened to include
+  // targetYear) and select targetYear.
+  function _populateHolidayYearSelect(sel, targetYear) {
+    const current = new Date().getFullYear();
+    let lo = current - 1, hi = current + 6;
+    if (targetYear < lo) lo = targetYear;
+    if (targetYear > hi) hi = targetYear;
+    sel.innerHTML = '';
+    for (let y = lo; y <= hi; y++) {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = y;
+      sel.appendChild(opt);
+    }
+    sel.value = targetYear;
+  }
+
   function openHolidaysModal() {
     const yearSel = $('#holiday-year-select');
-    const current = new Date().getFullYear();
-    if (!yearSel.options.length) {
-      for (let y = current - 1; y <= current + 6; y++) {
-        const opt = document.createElement('option');
-        opt.value = opt.textContent = y;
-        yearSel.appendChild(opt);
-      }
-      yearSel.value = current;
-      yearSel.addEventListener('change', _renderHolidayList);
+    _populateHolidayYearSelect(yearSel, _defaultHolidayYear(null));
+    if (!yearSel._wired) {
+      yearSel.addEventListener('change', () => {
+        _rememberHolidayYear(parseInt(yearSel.value, 10));
+        _renderHolidayList();
+      });
+      yearSel._wired = true;
     }
     _renderHolidayList();
     showModal('#holidays-modal-overlay');
@@ -986,19 +1019,50 @@ const UI = (() => {
   function openProjectHolidaysModal(p) {
     _projHolidaysTarget = p;
     const yearSel = $('#proj-holiday-year-select');
-    const current = new Date().getFullYear();
-    yearSel.innerHTML = '';
-    for (let y = current - 1; y <= current + 6; y++) {
-      const opt = document.createElement('option');
-      opt.value = opt.textContent = y;
-      yearSel.appendChild(opt);
-    }
-    yearSel.value = current;
+    const year    = _defaultHolidayYear(p);
+    _populateHolidayYearSelect(yearSel, year);
     $('#custom-holiday-date').value  = '';
     $('#custom-holiday-label').value = '';
-    _renderProjHolidayList(p, current);
+    _populateCopyHolidaysSelect(p);
+    _renderProjHolidayList(p, year);
     _renderCustomHolidaysList(p);
     showModal('#project-holidays-modal-overlay');
+  }
+
+  // Fill the "copy holidays from another project" dropdown
+  function _populateCopyHolidaysSelect(p) {
+    const sel = $('#copy-holidays-from');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Copy holidays from another project…</option>';
+    for (const other of State.projects) {
+      if (other.id === p.id) continue;
+      const opt = document.createElement('option');
+      opt.value = other.id;
+      opt.textContent = other.name || '(unnamed project)';
+      sel.appendChild(opt);
+    }
+  }
+
+  // Union-merge a holiday set into the in-memory project (dedupe by date),
+  // then re-render the modal lists. Saved later by "Done & Recalculate".
+  function _applyHolidaySet(p, set) {
+    p.removedHolidays = p.removedHolidays || [];
+    p.customHolidays  = p.customHolidays  || [];
+
+    const removedSeen = new Set(p.removedHolidays);
+    for (const date of (set.removed || [])) {
+      if (!removedSeen.has(date)) { p.removedHolidays.push(date); removedSeen.add(date); }
+    }
+
+    const customSeen = new Set(p.customHolidays.map(e => typeof e === 'string' ? e : e.date));
+    for (const entry of (set.custom || [])) {
+      const date = typeof entry === 'string' ? entry : entry.date;
+      if (!customSeen.has(date)) { p.customHolidays.push(entry); customSeen.add(date); }
+    }
+
+    const year = parseInt($('#proj-holiday-year-select').value, 10) || _defaultHolidayYear(p);
+    _renderProjHolidayList(p, year);
+    _renderCustomHolidaysList(p);
   }
 
   function _renderProjHolidayList(p, year) {
@@ -1452,7 +1516,49 @@ const UI = (() => {
 
     $('#proj-holiday-year-select').addEventListener('change', () => {
       const p = _projHolidaysTarget; if (!p) return;
-      _renderProjHolidayList(p, parseInt($('#proj-holiday-year-select').value, 10));
+      const year = parseInt($('#proj-holiday-year-select').value, 10);
+      _rememberHolidayYear(year);
+      _renderProjHolidayList(p, year);
+    });
+
+    // ── Reuse holidays: copy from project / CSV export + import ──
+    $('#btn-copy-holidays').addEventListener('click', () => {
+      const p = _projHolidaysTarget; if (!p) return;
+      const srcId = $('#copy-holidays-from').value;
+      if (!srcId) { toast('Pick a project to copy from.', 'error'); return; }
+      const src = State.projects.find(x => x.id === srcId);
+      if (!src) return;
+      _applyHolidaySet(p, {
+        removed: [...(src.removedHolidays || [])],
+        custom:  (src.customHolidays || []).map(e => (typeof e === 'string' ? e : { ...e })),
+      });
+      $('#copy-holidays-from').value = '';
+      toast(`Holidays copied from "${src.name}".`, 'success');
+    });
+
+    $('#btn-export-holidays').addEventListener('click', () => {
+      const p = _projHolidaysTarget; if (!p) return;
+      Exp.downloadHolidaysCSV(p);
+      toast('Holidays exported.', 'success');
+    });
+
+    $('#btn-import-holidays').addEventListener('click', () => $('#import-holidays-input').click());
+    $('#import-holidays-input').addEventListener('change', async e => {
+      const p = _projHolidaysTarget;
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!p || !file) return;
+      try {
+        const text = await file.text();
+        const set  = Import.parseHolidaysCSV(text);
+        if (!set.removed.length && !set.custom.length) {
+          toast('No holiday rows found in that file.', 'error'); return;
+        }
+        _applyHolidaySet(p, set);
+        toast(`Imported ${set.removed.length + set.custom.length} holiday rows.`, 'success');
+      } catch (err) {
+        toast('Could not read file: ' + err.message, 'error');
+      }
     });
 
     $('#btn-add-custom-holiday').addEventListener('click', () => {

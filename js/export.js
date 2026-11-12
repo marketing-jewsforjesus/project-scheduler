@@ -205,7 +205,47 @@ const Export = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { buildRows, toCSV, downloadCSV, copyAsTable, downloadProjectTemplate, downloadOutlookCSV };
+  // ─── Holiday set CSV (reusable across projects) ───────────────────
+  //
+  //  Exports a project's holiday customizations so they can be re-imported
+  //  into another project. Columns: Type | Date | Label
+  //    Type "removed" = a standard holiday treated as a working day
+  //    Type "custom"  = an extra non-working day (Label optional)
+  //
+  function downloadHolidaysCSV(project) {
+    const HEADERS = ['Type', 'Date', 'Label'];
+    const rows = [HEADERS];
+
+    for (const date of (project.removedHolidays || [])) {
+      rows.push(['removed', date, '']);
+    }
+    for (const entry of (project.customHolidays || [])) {
+      const date  = typeof entry === 'string' ? entry : entry.date;
+      const label = typeof entry === 'string' ? ''    : (entry.label || '');
+      rows.push(['custom', date, label]);
+    }
+
+    const csv = rows.map(row =>
+      row.map(cell => {
+        const s = String(cell ?? '');
+        return (s.includes(',') || s.includes('"') || s.includes('\n'))
+          ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+      href:     url,
+      download: `${project.name.replace(/[^a-z0-9]/gi, '_')}_holidays.csv`,
+    });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return { buildRows, toCSV, downloadCSV, copyAsTable, downloadProjectTemplate, downloadOutlookCSV, downloadHolidaysCSV };
 })();
 
 window.Export = Export;

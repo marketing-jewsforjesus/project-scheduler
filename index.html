@@ -392,6 +392,38 @@
           <button class="btn btn-primary btn-sm" id="btn-add-custom-holiday">Add</button>
         </div>
         <div id="custom-holidays-list"></div>
+
+        <hr class="divider" style="margin:16px 0;">
+        <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--clr-text-muted);margin-bottom:8px;">Reuse Holidays</h4>
+        <p style="font-size:12px;color:var(--clr-text-muted);margin-bottom:10px;">
+          Copy this project's holiday choices from another project, or move them between projects as a .csv.
+          Changes apply when you click <strong>Done &amp; Recalculate</strong>.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <select class="select-sm" id="copy-holidays-from" style="flex:1;min-width:180px;">
+            <option value="">Copy holidays from another project…</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-copy-holidays">Apply</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="btn-export-holidays" title="Download this project's holiday choices as a .csv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export .csv
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btn-import-holidays" title="Load holiday choices from a .csv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17,8 12,3 7,8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Import .csv
+          </button>
+          <input type="file" id="import-holidays-input" accept=".csv" style="display:none">
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" id="btn-proj-holidays-cancel">Cancel</button>
